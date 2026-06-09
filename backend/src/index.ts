@@ -1,82 +1,49 @@
 import "dotenv/config";
-import { Annotation } from "@langchain/langgraph";
 import { StateGraph, START, END } from "@langchain/langgraph";
-import { AzureChatOpenAI } from "@langchain/openai";
-import { HumanMessage } from "@langchain/core/messages";
+import { WorkflowState } from "./state/index.js";
+import { directorAgent } from "./agents/director.js";
+import { directorLLM } from "./azure/index.js";
 
-// --- State Definition ---
-const State = Annotation.Root({
-  query: Annotation<string>({
-    value: (current, update) => update,
-    default: () => "",
-  }),
-  searchResults: Annotation<any[]>({
-    value: (current, update) => update,
-    default: () => [],
-  }),
-  finalAnswer: Annotation<string>({
-    value: (current, update) => update,
-    default: () => "",
-  }),
-});
+/* =========================
+   GRAPH COMPILATION
+========================= */
 
-// --- Agent 1: Planner ---
-const plannerLLM = new AzureChatOpenAI({
-  azureOpenAIApiDeploymentName: "o4-mini",
-});
+const workflow = new StateGraph(WorkflowState)
+  .addNode("director", (state) => directorAgent(state, directorLLM))
+  
+  .addEdge(START, "director")
+  .addEdge("director", END);
 
-const plannerAgent = async (state: typeof State.State) => {
-  const prompt = `Based on the user's request, generate a precise search query.
-    User request: ${state.query}
-    Search query: `;
+export const app = workflow.compile();
 
-  const response = await plannerLLM.invoke([new HumanMessage(prompt)]);
-  return { query: response.content as string };
-};
-
-// --- Agent 2: Searcher ---
-const searcherLLM = new AzureChatOpenAI({
-  azureOpenAIApiDeploymentName: "o4-mini",
-});
-
-// Mock web search (replace with real API)
-const performWebSearch = async (query: string) => {
-  return [
-    { title: "Paris - Capital of France", url: "https://en.wikipedia.org/wiki/Paris", snippet: "Paris is the capital of France." },
-    { title: "France Overview", url: "https://en.wikipedia.org/wiki/France", snippet: "France is a country in Europe." },
-  ];
-};
-
-const searcherAgent = async (state: typeof State.State) => {
-  const results = await performWebSearch(state.query);
-  const prompt = `Structure the following search results as JSON:
-    ${JSON.stringify(results)}
-    Return only valid JSON.`;
-
-  const response = await searcherLLM.invoke([new HumanMessage(prompt)]);
-  const jsonResults = JSON.parse(response.content as string);
-
-  return {
-    searchResults: jsonResults,
-    finalAnswer: `Search completed for: ${state.query}`,
-  };
-};
-
-// --- Build and Run Graph ---
-const graph = new StateGraph(State)
-  .addNode("planner", plannerAgent)
-  .addNode("searcher", searcherAgent)
-  .addEdge(START, "planner")
-  .addEdge("planner", "searcher")
-  .addEdge("searcher", END);
-
-const app = graph.compile();
-
-// Example usage
+/* =========================
+   TEST RUNNER
+========================= */
 (async () => {
+  console.log("Running Director Agent Workflow...");
+  
   const result = await app.invoke({
-    query: "What is the capital of France?",
+    inputScript: "Create a short cinematic video about an astronaut discovering an ancient neon temple on Mars.",
   });
-  console.log("Final Answer:", result.finalAnswer);
-  console.log("Search Results:", result.searchResults);
+
+  console.log("\n====================================");
+  console.log("FINAL WORKFLOW RESULT");
+  console.log("====================================");
+  console.log("Refined Script:", result.refinedScript);
+  console.log("Universal Theme:", result.universalTheme);
+  console.log("Aspect Ratio:", result.universalAspectRatio);
+  console.log("\nVisual Bible:", JSON.stringify(result.visualBible, null, 2));
+  
+  console.log("\n====================================");
+  console.log(`GENERATED SCENES (${result.scenes.length} total)`);
+  console.log("====================================");
+
+  // Loop through and display each individual scene's blueprint
+  result.scenes.forEach((scene: any) => {
+    console.log(`\n🎬 SCENE ${scene.sceneNumber}`);
+    console.log(`   Description : ${scene.sceneDetail}`);
+    console.log(`   Image Prompt: ${scene.imageGenPrompt}`);
+    console.log(`   Video Prompt: ${scene.videoGenPrompt}`);
+    console.log("   ------------------------------------------------");
+  });
 })();
