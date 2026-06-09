@@ -24,16 +24,26 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Resolve directories relative to project root
+const projectRoot = path.join(__dirname, "..");
+const mockAssetsPath = fs.existsSync(path.join(projectRoot, "src", "Mock-assets"))
+  ? path.join(projectRoot, "src", "Mock-assets")
+  : path.join(__dirname, "Mock-assets");
+
+const exportsPath = fs.existsSync(path.join(projectRoot, "src", "exports"))
+  ? path.join(projectRoot, "src", "exports")
+  : path.join(__dirname, "exports");
+
 // Expose static directories for Mock-assets and final stitched outputs
-app.use("/static", express.static(path.join(__dirname, "Mock-assets")));
-app.use("/exports", express.static(path.join(__dirname, "exports")));
+app.use("/static", express.static(mockAssetsPath));
+app.use("/exports", express.static(exportsPath));
 
 // In-memory store for project sessions
 const projectStore: Record<string, any> = {};
 
 console.log("Express Server configuring static directories:");
-console.log("- Mock assets path:", path.join(__dirname, "Mock-assets"));
-console.log("- Exports path:", path.join(__dirname, "exports"));
+console.log("- Mock assets path:", mockAssetsPath);
+console.log("- Exports path:", exportsPath);
 
 /* ==================================================
    API ENDPOINTS
