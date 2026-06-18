@@ -26,8 +26,7 @@ Output ONLY the condensed sentence without quotes, punctuation at the end, or ma
         console.warn("LLM caption condensation failed, using full detail as fallback:", err);
       }
 
-      // We attach the caption text to remarkImage (or a custom field we can access, or we can just extend our type, but since IScene has remarkImage/remarkVideo, let's add a caption property or just use the sceneDetail directly or store it in remarkImage[0]).
-      // Actually, since JavaScript object references allow adding fields dynamically, we can just add a `caption` property to the scene object! In TypeScript, we can cast it or use it dynamically in our Editor Agent. Let's add a `caption` property.
+     
       return {
         ...scene,
         caption: caption,
